@@ -1,0 +1,11 @@
+*.local.*
+*.jks
+*.keystore
+.env
+.venv/
+__pycache__/
+*.pyc
+android/.gradle/
+android/**/build/
+android/local.properties
+artifacts/
