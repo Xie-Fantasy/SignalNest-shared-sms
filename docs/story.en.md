@@ -28,6 +28,14 @@ Android assigns a stable ID. The server durably accepts the message and delivers
 
 The older iPhone endpoint does not have the same durable queue and deduplication guarantees. The two paths should not be described as equally reliable.
 
+## Where does the message go when QQ is down?
+
+QQ was originally the only exit. The phone and server could both be healthy while the bot was offline, so the personal deployment later added status checks and tried Spug SMS and email when the legacy QQ send failed.
+
+That is not a transparent replacement. The selected SMS template accepted only a short verification-code field, so the program first had to guess a code from the original text. Email could carry the sender and part of the body. The guess can be wrong, a template can reject a request, and a provider can fail. A QQ timeout also does not prove the group missed the message. The legacy endpoint still returns 502 after the fallback attempt, so a client retry can create another notification.
+
+Android does not use that fallback: it waits while QQ is known offline and records an ambiguous result without automatically replaying the send. The public repository does not include the personal Spug configuration, alert or auto-login scripts. The fallback is part of the story, not a feature enabled by cloning this repository.
+
 ## From personal deployment to readable project
 
 A real deployment contains server addresses, phone numbers, account IDs, certificates, tokens and private operational scripts. The public version leaves those out and takes server targets from environment variables. Its Android configuration trusts system CAs; operators must configure their own deployment and certificates.
