@@ -1,11 +1,12 @@
 <div align="center">
   <img src="logo/Chinese%20logo.png" alt="信栖 SignalNest" width="340">
   <h1>信栖 SignalNest</h1>
-  <p><strong>一张 SIM 卡，几个人看短信：我把 QQ 拉来送信</strong></p>
-  <p>一个轻量、自托管的短信共享服务，让指定 SIM 卡收到的消息抵达需要它的人。</p>
+  <p><strong>让一张 SIM 卡收到的短信，抵达需要它的人。</strong></p>
+  <p>一个轻量、自托管的短信共享与自动分发服务。</p>
   <p>通过手机接收、服务端处理，将符合配置条件的短信转发至共享 QQ 群。</p>
   <p><a href="README.en.md">English</a> · <a href="docs/story.zh-CN.md">中文版故事</a> · <a href="docs/story.en.md">English story</a></p>
   <p>
+    <a href="#界面截图">界面截图</a> ·
     <a href="#适用场景">适用场景</a> ·
     <a href="#为什么选手机--服务器--qq">设计缘起</a> ·
     <a href="#一条短信的完整旅程">工作流程</a> ·
@@ -32,6 +33,14 @@
 > **先说清楚版本差别：**本仓库公开了脱敏后的 iPhone 网关和 Android 源码。上图中的备用短信／邮件是个人部署后来加的方案，涉及第三方账户和私人配置，**没有包含在公开代码中，克隆仓库不会自动启用**。下文会把设计和限制讲清楚。
 >
 > 这不是一个已经完成全面安全审计的产品。短信可能包含验证码和个人信息，请只在相关人员知情同意的范围内使用。原 iPhone 部署曾使用公网 HTTP；本文推荐的 HTTPS 方案是部署要求，不能倒推为原来的链路已经加密。
+
+## 界面截图
+
+以下是个人部署的监控界面，敏感信息已遮盖；监控系统尚未包含在当前公开代码中。
+
+![信栖登录页面](docs/screenshots/login.png)
+
+![监控总览](docs/screenshots/overview.png)
 
 ## 适用场景
 

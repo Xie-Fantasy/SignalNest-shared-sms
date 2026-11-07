@@ -2,7 +2,7 @@
 
 **One SIM. Shared messages. Connected people.**
 
-A lightweight, self-hosted SMS relay for sharing messages received by a designated SIM. A phone receives SMS, your server processes it, and selected messages can be forwarded to a configured QQ group.
+A lightweight, self-hosted SMS relay for sharing messages across devices and teams. A phone receives SMS, your server processes it, and selected messages can be forwarded to a configured QQ group.
 
 *One SIM, several people, and a QQ bot with a delivery job.*
 
@@ -22,6 +22,14 @@ SMS on a phone → private gateway → QQ bot → shared group
 > **The distinction matters:** this public repository includes the sanitized gateway and Android source. The SMS/email fallback was added later to the personal deployment and is **not included or enabled here**. Its design and limitations are described below.
 >
 > This is a personal project, not a fully audited messaging product. Forward messages only with the informed consent of everyone concerned. The original iPhone deployment used public HTTP; the HTTPS setup recommended here does not mean that original connection was encrypted.
+
+## Screenshots
+
+These screenshots show the personal deployment’s monitoring interface, with sensitive details obscured. The monitor is not yet included in the public code.
+
+![SignalNest login](docs/screenshots/login.png)
+
+![Monitoring overview](docs/screenshots/overview.png)
 
 ## Use Cases
 
