@@ -1,8 +1,14 @@
-# One SIM, several people, and a QQ bot with a delivery job
+# SignalNest
+
+**One SIM. Shared messages. Connected people.**
+
+A lightweight, self-hosted SMS relay for sharing messages received by a designated SIM. A phone receives SMS, your server processes it, and selected messages can be forwarded to a configured QQ group.
+
+*One SIM, several people, and a QQ bot with a delivery job.*
 
 [中文](README.md) | [Chinese story](docs/story.zh-CN.md) | [English story](docs/story.en.md)
 
-We had one SIM that several people needed to use, but every text arrived on the phone holding the card. Each time a code arrived, someone had to find the phone and pass the message along. Eventually I wondered whether the phone could deliver it to a place everyone already checked.
+The project began when several students shared one campus SIM for network access, but verification texts arrived only on the phone holding the card. Each time a code arrived, someone had to find the phone and pass the message along. Eventually I wondered whether the phone could deliver it to a place everyone already checked.
 
 The first version sounded straightforward: send some JSON to a server and have a bot post it to a QQ group. The interesting work turned out to be around that request. Which SIM actually received the text? What happens when QQ is offline? If a request times out, did the message fail—or did it arrive before the confirmation was lost?
 
@@ -16,6 +22,36 @@ SMS on a phone → private gateway → QQ bot → shared group
 > **The distinction matters:** this public repository includes the sanitized gateway and Android source. The SMS/email fallback was added later to the personal deployment and is **not included or enabled here**. Its design and limitations are described below.
 >
 > This is a personal project, not a fully audited messaging product. Forward messages only with the informed consent of everyone concerned. The original iPhone deployment used public HTTP; the HTTPS setup recommended here does not mean that original connection was encrypted.
+
+## Use Cases
+
+When more than one person needs to see messages sent to a designated number, SignalNest can relay eligible SMS from the receiving phone to a configured QQ group. Use a SIM that you or your organization are authorized to use, and obtain informed consent from everyone concerned.
+
+### Campus Networks and Shared Wi-Fi
+
+When students share a campus SIM for network access, verification texts arrive only on the phone holding it. With the relevant people's consent, eligible messages can be relayed to a shared QQ group, reducing manual forwarding. The same approach can be considered for shared Wi-Fi services that send SMS to that number.
+
+### Shared Family Services
+
+A family may use one number for broadband, property, utilities, or deliveries, leaving one person to pass along the resulting texts. Eligible SMS sent to that number can be forwarded to a family QQ group for the relevant members to read.
+
+### Shared Business and Team Numbers
+
+A studio, community group, or small business may receive order, appointment, and delivery notifications on a shared number. Authorized members can read eligible SMS in the configured QQ group instead of relying on one person to forward them. This is not an order management or customer service system.
+
+### Device and Infrastructure Alerts
+
+Maintenance staff can use a dedicated SIM to receive SMS alerts from industrial equipment, UPS units, network devices, or security systems, then relay them to an on-call QQ group. The device or monitoring system must itself be able to send SMS to that number. SignalNest does not collect telemetry or replace a dedicated monitoring platform.
+
+### On-Call Teams and Project Coordination
+
+Property, warehouse, maintenance, or on-call teams and temporary project groups can receive business notifications on a shared number and forward eligible texts to their QQ group. This can reduce manual handoffs between shifts; the project does not provide scheduling, ticketing, or alert escalation.
+
+### Development Testing and QA
+
+Developers and testers can use a dedicated SIM to receive test codes or status messages from their test system and share them in a QA or development QQ group. Use only accounts, devices, SIM cards, and environments that you own or are explicitly authorized to use; do not bypass third-party interactive verification or account security controls.
+
+> **Public-version scope:** The server is configured with one target phone number and one QQ group. Android filters by its bound SIM and keywords; iPhone shortcut triggers determine which messages are submitted. Android's durable queue and deduplication do not apply to the legacy iPhone endpoint. These examples require configuration and do not imply multi-platform routing, advanced permissions, or direct device monitoring.
 
 ## Why a phone, a server and QQ?
 
