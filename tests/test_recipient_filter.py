@@ -6,6 +6,10 @@ import sys
 import unittest
 from unittest.mock import AsyncMock, patch
 
+os.environ.setdefault('TARGET_RECIPIENT', '13800138000')
+os.environ['SMS_EVENT_LOG_ENABLED'] = 'false'
+os.environ.pop('SPUG_CODE_URL', None)
+os.environ.pop('SPUG_NOTIFY_URL', None)
 os.environ.update(SMS_PUSH_TOKEN=secrets.token_hex(32), QQ_FORWARD_ENABLED='true',
     NAPCAT_ACCESS_TOKEN=secrets.token_hex(32), NAPCAT_API_URL='http://127.0.0.1:13000',
     QQ_TARGET_TYPE='group', QQ_TARGET_ID='1234567891', BOT_QQ_ID='1234567890',
@@ -32,7 +36,7 @@ class RecipientFilterTests(unittest.TestCase):
                 with patch.object(gateway.asyncio, 'to_thread',
                                   new=AsyncMock(return_value=None)) as mocked:
                     result = asyncio.run(gateway.push(self.payload(recipient)))
-                self.assertEqual(result, {'success': True, 'forwarded': True})
+                self.assertEqual(result, {'success': True, 'forwarded': True, 'channel': 'qq_bot'})
                 mocked.assert_awaited_once()
 
     def test_denied_formats_never_call_qq(self):

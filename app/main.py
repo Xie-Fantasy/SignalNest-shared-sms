@@ -10,6 +10,10 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from app import spug_fallback
+from app import forward_route
+from app import event_log
+from app import runtime_config
 
 TOKEN = os.environ['SMS_PUSH_TOKEN']
 if len(TOKEN) < 64:
@@ -108,9 +112,12 @@ def forward_to_qq(payload: PushMessage):
     identity = call('get_login_info', {})
     if not isinstance(identity, dict) or str(identity.get('user_id')) != BOT_QQ:
         raise RuntimeError('Unexpected bot identity')
+    # Resolve the target at send time so the web monitor can change it without
+    # touching .env or restarting this service. Falls back to QQ_TARGET_ID.
+    target = runtime_config.target_group()
     text = f'【短信通知】\n发件人：{payload.sender}\n接收时间：{payload.receivedAt}\n\n{payload.message}'
     result = call('send_group_msg', {
-        'group_id': int(QQ_GROUP),
+        'group_id': int(target),
         'message': [{'type': 'text', 'data': {'text': text}}]
     })
     if not isinstance(result, dict) or result.get('message_id') is None:
@@ -119,31 +126,82 @@ def forward_to_qq(payload: PushMessage):
 
 @api.post('/api/message/push')
 async def push(payload: PushMessage):
+    trace = event_log.new_trace()
     normalized_recipient = normalize_recipient(payload.recipient)
+    # 2026-11-05 (second clarification): NO masking anywhere. The user asked
+    # explicitly why phone numbers were still hidden, so journald now stores the
+    # full sender / recipient too. Message bodies, verification codes and
+    # tokens are still NEVER written to any log or event store.
     record = {
-        'sender': mask_sender(payload.sender),
-        'recipient': mask_phone(normalized_recipient),
+        'sender': payload.sender,
+        'recipient': normalized_recipient or payload.recipient,
         'receivedAt': payload.receivedAt,
         'messageLength': len(payload.message),
     }
-    # Never write message contents, tokens, or complete phone numbers to production logs.
+    full_sender = record['sender']
+    full_recipient = record['recipient']
+    group_label = runtime_config.label()
     logger.info('[SMS RECEIVED] %s', json.dumps(record, ensure_ascii=False))
+    event_log.emit('RECEIVED', trace=trace, source='iphone', channel='ingress',
+                   result='ok', sender=full_sender, recipient=full_recipient,
+                   length=record['messageLength'], target='短信网关')
     if normalized_recipient != TARGET_RECIPIENT:
         logger.info('[SMS IGNORED] reason=recipient_not_allowed')
+        event_log.emit('IGNORED', trace=trace, source='iphone', channel='ingress',
+                       result='ignored', sender=full_sender,
+                       recipient=full_recipient, length=record['messageLength'],
+                       note='recipient_not_allowed')
         return {'success': True, 'forwarded': False, 'reason': 'recipient_not_allowed'}
 
-    logger.info('[SMS ACCEPTED] recipient=%s', mask_phone(normalized_recipient))
+    logger.info('[SMS ACCEPTED] recipient=%s', full_recipient)
+    event_log.emit('ACCEPTED', trace=trace, source='iphone', channel='ingress',
+                   result='ok', sender=full_sender, recipient=full_recipient,
+                   length=record['messageLength'], target=group_label)
     if not QQ_ENABLED:
+        event_log.emit('SKIPPED', trace=trace, source='iphone', channel='qq',
+                       result='ignored', note='qq_forward_disabled',
+                       sender=full_sender, recipient=full_recipient)
         return {'success': True, 'forwarded': False, 'reason': 'qq_forward_disabled'}
 
-    try:
-        await asyncio.to_thread(forward_to_qq, payload)
-    except Exception:
-        # Exception strings may include upstream content; never log them.
-        logger.error('[QQ FORWARD FAILED] delivery not confirmed; no automatic retry')
-        return JSONResponse({'detail': 'QQ forwarding failed'}, status_code=502)
-    logger.info('[QQ FORWARDED] group=%s', QQ_GROUP)
-    return {'success': True, 'forwarded': True}
+    # Try configured channels in priority order; stop at the first success.
+    # Default route is [qq_bot, sms] which reproduces the old behaviour exactly.
+    channels = forward_route.enabled_channels()
+    for ch in channels:
+        try:
+            if ch == 'qq_bot':
+                if not QQ_ENABLED:
+                    logger.info('[QQ SKIPPED] qq_forward_disabled')
+                    event_log.emit('SKIPPED', trace=trace, source='iphone', channel='qq',
+                                   result='ignored', note='qq_forward_disabled',
+                                   sender=full_sender, recipient=full_recipient)
+                    continue
+                await asyncio.to_thread(forward_to_qq, payload)
+                logger.info('[QQ FORWARDED] group=%s', group_label)
+                event_log.emit('QQ_FORWARDED', trace=trace, source='iphone', channel='qq',
+                               result='ok', sender=full_sender, recipient=full_recipient,
+                               target=group_label)
+                return {'success': True, 'forwarded': True, 'channel': 'qq_bot'}
+            elif ch == 'sms':
+                ok = await asyncio.to_thread(spug_fallback.fallback, payload, trace)
+                if ok:
+                    logger.info('[SPUG FALLBACK FORWARDED] channel=sms')
+                    return {'success': True, 'forwarded': True, 'channel': 'sms'}
+                # otherwise fall through to the next channel
+        except Exception:
+            # Exception strings may include upstream content; never log them.
+            logger.error('[%s FORWARD FAILED] trying next channel; no automatic retry',
+                         ch.upper())
+            event_log.emit('QQ_FORWARD_FAILED', trace=trace, source='iphone', channel=ch,
+                           result='failed', sender=full_sender,
+                           recipient=full_recipient, target=group_label,
+                           note='channel_unavailable')
+            continue
+    logger.error('[FORWARD FAILED] all channels exhausted: %s', ','.join(channels))
+    event_log.emit('FORWARD_EXHAUSTED', trace=trace, source='iphone',
+                   channel='none', result='failed', sender=full_sender,
+                   recipient=full_recipient, target=group_label,
+                   note='all_channels_failed')
+    return JSONResponse({'detail': 'All forwarding channels failed'}, status_code=502)
 
 
 class RequestGuard:

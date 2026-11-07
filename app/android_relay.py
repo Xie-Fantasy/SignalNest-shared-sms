@@ -17,6 +17,14 @@ from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app import event_log
+from app import runtime_config
+
+
+def qq_target_label():
+    # Resolved at emit time so a monitor-side group change is reflected at once.
+    return runtime_config.label()
+
 
 class AndroidMessage(BaseModel):
     model_config = ConfigDict(strict=True, extra='forbid')
@@ -102,14 +110,23 @@ class AndroidInbox:
         if not payload.simVerified:
             raise HTTPException(400, 'SIM verification required')
         if self.normalize(payload.recipient) != self.target:
+            event_log.emit('ANDROID_IGNORED', source='android', channel='ingress',
+                           result='ignored', note='recipient_not_allowed',
+                           sender=payload.sender,
+                           recipient=payload.recipient)
             return {'success': True, 'accepted': False, 'reason': 'recipient_not_allowed'}
         received = datetime.fromisoformat(payload.receivedAt.replace('Z', '+00:00')).timestamp()
         now = time.time()
         if received > now + 120:
             raise HTTPException(400, 'Invalid message time')
         if now - received >= 600:
+            event_log.emit('ANDROID_EXPIRED', source='android', channel='ingress',
+                           result='ignored', note='expired_on_arrival',
+                           sender=payload.sender,
+                           recipient=payload.recipient)
             return {'success': True, 'accepted': False, 'reason': 'expired'}
         key = hashlib.sha256((payload.deviceId + ':' + payload.clientMessageId).encode()).hexdigest()
+        trace = key[:16]
         path = self.directory / (key + '.json')
         digest = hashlib.sha256(payload.model_dump_json().encode()).hexdigest()
         async with self.lock:
@@ -117,18 +134,33 @@ class AndroidInbox:
                 record = json.loads(path.read_text(encoding='utf-8'))
                 if record['digest'] != digest:
                     raise HTTPException(409, 'Message ID already used')
+                event_log.emit('ANDROID_DEDUP', trace=trace, source='android',
+                               channel='ingress', result='ignored',
+                               note='duplicate_client_message_id',
+                               sender=payload.sender,
+                               recipient=payload.recipient)
                 return {'success': True, 'accepted': True, 'deduplicated': True,
                         'delivery': record['state']}
             if sum(1 for p in self.directory.glob('*.json')) >= 20000:
+                event_log.emit('ANDROID_IGNORED', trace=trace, source='android',
+                               channel='ingress', result='ignored', note='inbox_capacity',
+                               sender=payload.sender,
+                               recipient=payload.recipient)
                 return JSONResponse({'detail': 'Inbox capacity reached'}, status_code=503)
             self.write(path, {'digest': digest, 'state': 'pending', 'created': now,
                               'expires': received + 600, 'payload': payload.model_dump()})
+        event_log.emit('ANDROID_ACCEPTED', trace=trace, source='android',
+                       channel='ingress', result='ok', target=qq_target_label(),
+                       sender=payload.sender,
+                       recipient=payload.recipient,
+                       length=len(payload.message))
         return {'success': True, 'accepted': True, 'delivery': 'pending'}
 
     async def cycle(self):
         ready = None
         for path in list(self.directory.glob('*.json')):
             payload = None
+            data = None
             async with self.lock:
                 record = json.loads(path.read_text(encoding='utf-8'))
                 if time.time() - record['created'] > 7 * 86400:
@@ -140,6 +172,9 @@ class AndroidInbox:
                     record['state'] = 'expired'
                     record.pop('payload', None)
                     self.write(path, record)
+                    event_log.emit('ANDROID_EXPIRED', trace=path.stem[:16],
+                                   source='android', channel='queue',
+                                   result='ignored', note='queue_expired')
                     continue
                 if not self.qq_enabled:
                     continue
@@ -151,6 +186,9 @@ class AndroidInbox:
                     record['state'] = 'expired'
                     record.pop('payload', None)
                     self.write(path, record)
+                    event_log.emit('ANDROID_EXPIRED', trace=path.stem[:16],
+                                   source='android', channel='queue',
+                                   result='ignored', note='queue_expired')
                     continue
                 record['state'] = 'sending'
                 self.write(path, record)
@@ -166,6 +204,14 @@ class AndroidInbox:
                 record['state'] = state
                 record.pop('payload', None)
                 self.write(path, record)
+            event_log.emit(
+                'ANDROID_DELIVERED' if state == 'delivered' else 'ANDROID_DELIVERY_UNKNOWN',
+                trace=path.stem[:16], source='android', channel='qq',
+                result='ok' if state == 'delivered' else 'unknown',
+                target=qq_target_label(),
+                sender=data.get('sender') if data else '',
+                recipient=data.get('recipient') if data else '',
+                note='queue_delivery' if state == 'delivered' else 'send_result_unknown')
 
     async def run(self):
         while True:

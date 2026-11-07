@@ -9,3 +9,9 @@ android/.gradle/
 android/**/build/
 android/local.properties
 artifacts/
+
+web/node_modules/
+web/dist/
+*.smsrelay
+.env.*
+!*.example

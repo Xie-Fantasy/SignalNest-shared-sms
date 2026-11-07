@@ -1,0 +1,12 @@
+[Unit]
+Description=Restart the NapCat container (requested via the web monitor)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# Performs ONLY `docker restart napcat`, then removes the trigger file the
+# (unprivileged, sandboxed) web monitor dropped. The monitor cannot run docker
+# itself (NoNewPrivileges + empty CapabilityBoundingSet), so this root-owned
+# unit is the single escalation point - narrowly scoped to one container.
+ExecStart=/bin/sh -c 'docker restart napcat && rm -f /var/lib/sms-gateway/restart-napcat.trigger && touch /var/lib/sms-gateway/restart-napcat.last'

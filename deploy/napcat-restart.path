@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch for NapCat restart trigger written by the web monitor
+After=docker.service
+Requires=docker.service
+
+[Path]
+PathExists=/var/lib/sms-gateway/restart-napcat.trigger
+
+[Install]
+WantedBy=multi-user.target

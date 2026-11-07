@@ -1,0 +1,38 @@
+[Unit]
+Description=SMS gateway web monitor (read-only)
+After=network.target sms-gateway.service
+
+[Service]
+Type=simple
+User=sms-gateway
+Group=sms-gateway
+WorkingDirectory=/opt/sms-monitor
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=SMS_EVENT_DIR=/var/lib/sms-gateway/events
+Environment=SMS_MONITOR_AUTH_FILE=/etc/sms-monitor/auth.json
+ExecStart=/opt/sms-gateway/.venv/bin/uvicorn server:app --app-dir /opt/sms-monitor --host 127.0.0.1 --port 18101 --no-access-log --no-server-header --limit-concurrency 16 --timeout-keep-alive 5
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+# Web monitor writes: Spug developer token (/etc/sms-monitor/spug.json) and
+# the independent forwarding-group config (/var/lib/sms-gateway/runtime-config.json).
+# Both are 600 / 700 and owned by sms-gateway. Nothing else is writable.
+ReadWritePaths=/etc/sms-monitor /var/lib/sms-gateway
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sms-monitor
+
+[Install]
+WantedBy=multi-user.target

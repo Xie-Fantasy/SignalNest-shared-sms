@@ -9,6 +9,8 @@ import uuid
 from datetime import datetime, timezone
 from unittest.mock import Mock
 
+os.environ.setdefault('TARGET_RECIPIENT', '13800138000')
+os.environ['SMS_EVENT_LOG_ENABLED'] = 'false'
 os.environ['SMS_PUSH_TOKEN'] = secrets.token_hex(32)
 os.environ['QQ_FORWARD_ENABLED'] = 'false'
 from app import main

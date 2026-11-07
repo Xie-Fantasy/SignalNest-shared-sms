@@ -19,13 +19,13 @@ SMS on a phone → private gateway → QQ bot → shared group
                                     ↘ personal deployment: optional SMS/email fallback
 ```
 
-> **The distinction matters:** this public repository includes the sanitized gateway and Android source. The SMS/email fallback was added later to the personal deployment and is **not included or enabled here**. Its design and limitations are described below.
+> **The distinction matters:** this public repository includes the sanitized gateway, Android source, and web monitor. The SMS/email fallback was added later to the personal deployment and is **now included as optional source, but requires your own Spug template configuration**. Its design and limitations are described below.
 >
 > This is a personal project, not a fully audited messaging product. Forward messages only with the informed consent of everyone concerned. The original iPhone deployment used public HTTP; the HTTPS setup recommended here does not mean that original connection was encrypted.
 
 ## Screenshots
 
-These screenshots show the personal deployment’s monitoring interface, with sensitive details obscured. The monitor is not yet included in the public code.
+These screenshots show the personal deployment’s monitoring interface, with sensitive details obscured. Monitor source is now included; see the [public deployment notes](docs/public-deployment.md).
 
 ![SignalNest login](docs/screenshots/login.png)
 
@@ -151,9 +151,9 @@ flowchart TD
 
 The personal implementation used Spug Push Assistant. Its chosen SMS template only accepted a short code, so it could carry an extracted verification code rather than the whole message. Email could carry the sender, time and a truncated body. Pattern matching is fallible: it can select the wrong number or find none. A provider's success response does not prove the recipient's phone or inbox received it. The original implementation also logged extracted values; any operator must inspect and change such logging before use.
 
-The legacy API still returns **502 after attempting fallback**. A caller retry can trigger another fallback, and a timed-out QQ call may already have posted to the group. Android does not use that fallback: it waits when QQ is known offline and stops automatic replay after an ambiguous send.
+The historical deployment returned 502 after fallback. Current code returns `forwarded: true, channel: sms` when Spug fallback confirms success, and 502 when all channels fail. A caller retry can trigger another fallback, and a timed-out QQ call may already have posted to the group. Android does not use that fallback: it waits when QQ is known offline and stops automatic replay after an ambiguous send.
 
-Monitoring and fallback are not the same as automatic login. The personal deployment had timers for monitoring and recovery; they were inactive at the last inspection. **None of these third-party or auto-login scripts is in this public repository.** If you build a fallback, handle private credentials, recipient consent, rate limits, cost, durable state and failure alerts; test against a mock first. Do not bypass interactive account verification using SMS codes.
+Monitoring and fallback are not the same as automatic login. The personal deployment had timers for monitoring and recovery; they were inactive at the last inspection. **Optional Spug fallback and manual panel login are now included; scheduled recovery is not.** Before enabling fallback, handle private credentials, recipient consent, rate limits, cost, durable state and failure alerts; test against a mock first. Do not bypass interactive account verification using SMS codes.
 
 ## Set up the server
 
@@ -253,10 +253,10 @@ No APK is published here. Open `android/` in Android Studio and configure the SD
 | Android cannot enable | Permissions, server connection, binding, tests on both SIMs and keywords |
 | Accepted but absent from group | Pending/expiry state, QQ identity and group membership |
 | `delivery_unknown` or legacy 502 | Check the group before considering a retry |
-| QQ offline | NapCat and login status; complete required verification manually. Public code has no auto-recovery or fallback |
+| QQ offline | NapCat and login status; complete required verification manually. Public code has no scheduled auto-recovery; fallback needs separate configuration |
 
 ## Privacy and limits
 
-Group members can read forwarded content. Obtain consent and use the narrowest useful keyword rules. Android's server queue holds plaintext while waiting to send, so protect server access, logs and backups; third-party services and email require their own protections. Both clients share a token and individual devices cannot currently be revoked independently. OS restrictions can delay or lose SMS; queue entries expire; a OneBot acknowledgement is not a read receipt.
+Gateway logs, structured events, and the authenticated monitor include full sender/recipient and group identifiers; restrict access. Spug template URLs are not returned by the panel. Group members can read forwarded content. Obtain consent and use the narrowest useful keyword rules. Android's server queue holds plaintext while waiting to send, so protect server access, logs and backups; third-party services and email require their own protections. Both clients share a token and individual devices cannot currently be revoked independently. OS restrictions can delay or lose SMS; queue entries expire; a OneBot acknowledgement is not a read receipt.
 
 This project is released under the [MIT license](LICENSE). NapCat, QQ, dependencies and other services have their own terms.
