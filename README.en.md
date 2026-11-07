@@ -118,8 +118,8 @@ This is a minimal Linux setup for the public version. It does not install or log
 ### 1. Install and configure the gateway
 
 ```bash
-git clone https://github.com/Xie-Fantasy/shared-sms.git
-cd shared-sms
+git clone https://github.com/Xie-Fantasy/SignalNest-shared-sms.git
+cd SignalNest-shared-sms
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt

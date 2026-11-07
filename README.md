@@ -1,6 +1,20 @@
-# 一张 SIM 卡，几个人看短信：我把 QQ 拉来送信
-
-[English](README.en.md) ｜ [单独阅读中文版故事](docs/story.zh-CN.md) ｜ [English story](docs/story.en.md)
+<div align="center">
+  <img src="logo/Chinese%20logo.png" alt="信栖 SignalNest" width="340">
+  <h1>信栖 SignalNest</h1>
+  <p><strong>一张 SIM 卡，几个人看短信：我把 QQ 拉来送信</strong></p>
+  <p>将共享手机收到的短信，经自建服务转发至 QQ 群。</p>
+  <p><a href="README.en.md">English</a> · <a href="docs/story.zh-CN.md">中文版故事</a> · <a href="docs/story.en.md">English story</a></p>
+  <p>
+    <a href="#为什么选手机--服务器--qq">设计缘起</a> ·
+    <a href="#一条短信的完整旅程">工作流程</a> ·
+    <a href="#qq-不能用时怎么办">备用方案</a> ·
+    <a href="#从零搭建服务端">服务端部署</a> ·
+    <a href="#让-iphone-发出第一条请求">iPhone</a> ·
+    <a href="#android-安装与双卡配置">Android</a> ·
+    <a href="#出问题时从哪查">故障排查</a> ·
+    <a href="#已知限制和隐私">限制与隐私</a>
+  </p>
+</div>
 
 有一张大家都要用的卡，短信却只会落在插着它的那部手机上。每次等验证码，都要先找手机，再把消息转给需要的人。次数多了，我就想：能不能让它收到短信后，自己把消息送到大家都看得到的地方？
 
@@ -16,17 +30,6 @@
 > **先说清楚版本差别：**本仓库公开了脱敏后的 iPhone 网关和 Android 源码。上图中的备用短信／邮件是个人部署后来加的方案，涉及第三方账户和私人配置，**没有包含在公开代码中，克隆仓库不会自动启用**。下文会把设计和限制讲清楚。
 >
 > 这不是一个已经完成全面安全审计的产品。短信可能包含验证码和个人信息，请只在相关人员知情同意的范围内使用。原 iPhone 部署曾使用公网 HTTP；本文推荐的 HTTPS 方案是部署要求，不能倒推为原来的链路已经加密。
-
-## 目录
-
-- [为什么选手机 + 服务器 + QQ](#为什么选手机--服务器--qq)
-- [一条短信的完整旅程](#一条短信的完整旅程)
-- [QQ 不能用时怎么办](#qq-不能用时怎么办)
-- [从零搭建服务端](#从零搭建服务端)
-- [让 iPhone 发出第一条请求](#让-iphone-发出第一条请求)
-- [Android 安装与双卡配置](#android-安装与双卡配置)
-- [出问题时从哪查](#出问题时从哪查)
-- [已知限制和隐私](#已知限制和隐私)
 
 ## 为什么选手机 + 服务器 + QQ
 
@@ -131,8 +134,8 @@ flowchart TD
 ### 1. 准备 Python 服务
 
 ```bash
-git clone https://github.com/Xie-Fantasy/shared-sms.git
-cd shared-sms
+git clone https://github.com/Xie-Fantasy/SignalNest-shared-sms.git
+cd SignalNest-shared-sms
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
